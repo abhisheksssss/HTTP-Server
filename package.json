@@ -3,9 +3,12 @@
   "description": "Build your own HTTP server challenge, from CodeCrafters",
   "type": "module",
   "scripts": {
-    "dev": "node run app/main.ts"
+    "dev": "node app/main.ts"
   },
   "devDependencies": {
     "@types/bun": "latest"
+  },
+  "dependencies": {
+    "net": "^1.0.2"
   }
 }
