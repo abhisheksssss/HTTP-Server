@@ -19,6 +19,17 @@ const path=parts[1];
 if(path=="/"){
     const response = "HTTP/1.1 200 OK\r\n\r\n";
     socket.write(response);
+}else if(path.startsWith("/echo/")){
+const echoStr=path.substring(6);
+
+   const response = `HTTP/1.1 200 OK\r\n` +
+                        `Content-Type: text/plain\r\n` +
+                        `Content-Length: ${echoStr.length}\r\n` +
+                        `\r\n` +
+                        `${echoStr}`;
+
+    socket.write(response);
+
 }else{
   const response="HTTP/1.1 404 NOt found\r\n\r\n";
   socket.write(response);
