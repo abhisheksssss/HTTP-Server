@@ -1,7 +1,6 @@
 import * as net from "net";
 import * as fs from "fs";
 import * as path from "path";
-import { isUtf8 } from "buffer";
 
 console.log("Logs from your program will appear here!");
 
@@ -24,10 +23,27 @@ const server = net.createServer((socket) => {
     const requestLine = lines[0];
     const parts = requestLine.split(' ');
 
-    if (parts.length >= 3) {  // Changed from 2 to 3 to include HTTP method
-      const method = parts[0];  // Extract HTTP method
+    if (parts.length >= 3) {
+      const method = parts[0];
       const path = parts[1];
       const httpVersion = parts[2];
+      
+      // Parse ALL headers
+      const headers: Record<string, string> = {};
+      for (let i = 1; i < lines.length; i++) {
+        const line = lines[i];
+        
+        if (line === "") {
+          break;
+        }
+        
+        const separatorIndex = line.indexOf(":");
+        if (separatorIndex !== -1) {
+          const headerName = line.substring(0, separatorIndex).trim().toLowerCase();
+          const headerValue = line.substring(separatorIndex + 1).trim();
+          headers[headerName] = headerValue;
+        }
+      }
 
       // Handle GET requests
       if (method === "GET") {
@@ -38,36 +54,26 @@ const server = net.createServer((socket) => {
           });
         } else if (path.startsWith("/echo/")) {
           const echoStr = path.substring(6);
+          
+          const acceptEncoding = headers["accept-encoding"] || "";
+          const supportGzip = acceptEncoding.includes("gzip");
+
+          let responseHeaders = `Content-Type: text/plain\r\n`;
+
+          if (supportGzip) {
+            responseHeaders += `Content-Encoding: gzip\r\n`;
+          }
+          responseHeaders += `Content-Length: ${echoStr.length}\r\n`;
+
           const response = `HTTP/1.1 200 OK\r\n` +
-            `Content-Type: text/plain\r\n` +
-            `Content-Length: ${echoStr.length}\r\n` +
+            responseHeaders +
             `\r\n` +
             `${echoStr}`;
           socket.write(response, () => {
             socket.end();
           });
         } else if (path === "/user-agent") {
-          let userAgent = "";
-
-          for (let i = 1; i < lines.length; i++) {
-            const line = lines[i];
-
-            if (line === "") {
-              break;
-            }
-
-            const separatorIndex = line.indexOf(":");
-
-            if (separatorIndex !== -1) {
-              const headerName = line.substring(0, separatorIndex).trim();
-              const headerValue = line.substring(separatorIndex + 1).trim();
-
-              if (headerName.toLowerCase() === "user-agent") {
-                userAgent = headerValue;
-                break;
-              }
-            }
-          }
+          const userAgent = headers["user-agent"] || "";
 
           const response = `HTTP/1.1 200 OK\r\n` +
             `Content-Type: text/plain\r\n` +
@@ -79,7 +85,7 @@ const server = net.createServer((socket) => {
           });
         } else if (path.startsWith("/files/") && directoryPath) {
           // Extract filename from path
-          const filename = path.substring(7); // Remove "/files/" prefix
+          const filename = path.substring(7);
           const filePath = `${directoryPath}/${filename}`;
           
           // Check if file exists
@@ -134,29 +140,19 @@ const server = net.createServer((socket) => {
       else if (method === "POST") {
         if (path.startsWith("/files/") && directoryPath) {
           // Extract filename from path
-          const filename = path.substring(7); // Remove "/files/" prefix
+          const filename = path.substring(7);
           const filePath = `${directoryPath}/${filename}`;
           
-          // Parse headers to find Content-Length
-          let contentLength = 0;
-          let bodyStartIndex = 0;
+          // Parse Content-Length from headers (already parsed)
+          const contentLengthStr = headers["content-length"] || "0";
+          const contentLength = parseInt(contentLengthStr, 10);
           
+          // Find the empty line that separates headers from body
+          let bodyStartIndex = 0;
           for (let i = 1; i < lines.length; i++) {
-            const line = lines[i];
-            
-            if (line === "") {
+            if (lines[i] === "") {
               bodyStartIndex = i + 1;
               break;
-            }
-            
-            const separatorIndex = line.indexOf(":");
-            if (separatorIndex !== -1) {
-              const headerName = line.substring(0, separatorIndex).trim().toLowerCase();
-              const headerValue = line.substring(separatorIndex + 1).trim();
-              
-              if (headerName === "content-length") {
-                contentLength = parseInt(headerValue, 10);
-              }
             }
           }
           
