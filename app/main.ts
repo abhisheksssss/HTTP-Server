@@ -53,25 +53,31 @@ const server = net.createServer((socket) => {
             socket.end();
           });
         } else if (path.startsWith("/echo/")) {
-          const echoStr = path.substring(6);
-          
-          const acceptEncoding = headers["accept-encoding"] || "";
-          const supportGzip = acceptEncoding.includes("gzip");
+           const echoStr = path.substring(6);
+  
+  const acceptEncoding = headers["accept-encoding"] || "";
+  
+  // Split by commas and check each encoding
+  let supportGzip = false;
+  if (acceptEncoding) {
+    const encodings = acceptEncoding.split(',').map(e => e.trim().toLowerCase());
+    supportGzip = encodings.includes("gzip");
+  }
 
-          let responseHeaders = `Content-Type: text/plain\r\n`;
+  let responseHeaders = `Content-Type: text/plain\r\n`;
 
-          if (supportGzip) {
-            responseHeaders += `Content-Encoding: gzip\r\n`;
-          }
-          responseHeaders += `Content-Length: ${echoStr.length}\r\n`;
+  if (supportGzip) {
+    responseHeaders += `Content-Encoding: gzip\r\n`;
+  }
+  responseHeaders += `Content-Length: ${echoStr.length}\r\n`;
 
-          const response = `HTTP/1.1 200 OK\r\n` +
-            responseHeaders +
-            `\r\n` +
-            `${echoStr}`;
-          socket.write(response, () => {
-            socket.end();
-          });
+  const response = `HTTP/1.1 200 OK\r\n` +
+    responseHeaders +
+    `\r\n` +
+    `${echoStr}`;
+  socket.write(response, () => {
+    socket.end();
+  });
         } else if (path === "/user-agent") {
           const userAgent = headers["user-agent"] || "";
 
